@@ -11,8 +11,18 @@ PORTNUM = 2390
 #s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
 
 # enter the data content of the UDP packet as hex
-RED 		= str(1023)+':'+str(0)+':'+str(0)
-OFF 		= str(0)+':'+str(0)+':'+str(0)
+colorList = []
+colorList.append(str(0)+':'+str(0)+':'+str(0))
+colorList.append(str(1023)+':'+str(0)+':'+str(0))
+colorList.append(str(0)+':'+str(0)+':'+str(1023))
+colorList.append(str(0)+':'+str(1023)+':'+str(0))
+colorList.append(str(1023)+':'+str(1023)+':'+str(1023))
+
+# color index
+i = 0
+
+# Timing delay to check for double tap
+delay = 0.3
 
 GPIO.setmode(GPIO.BCM)
 
@@ -42,6 +52,13 @@ pad2alreadyPressed = False
 pad3alreadyPressed = False
 pad4alreadyPressed = False
 
+def changeColor( color ):
+	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
+	s.connect((IPADDR, PORTNUM))
+	s.send(colorList[color])
+	s.close()
+	i = color
+
 while True:
     pad0pressed = not GPIO.input(pad0)
     pad1pressed = not GPIO.input(pad1)
@@ -50,30 +67,37 @@ while True:
     pad4pressed = not GPIO.input(pad4)
     
     if pad0pressed and not pad0alreadyPressed:
-		if light0:
-			print "Pad 0 pressed. Turning Light on."
-			# connect the socket
-			s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
-			s.connect((IPADDR, PORTNUM))
-			# send the command
-			s.send(RED)
-			# close the socket
-			s.close()
-			light0 = False
-		else:
-			print "Pad 0 pressed. Turning Light off."
-			# connect the socket
-			s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
-			s.connect((IPADDR, PORTNUM))
-			# send the command
-			s.send(OFF)
-			# close the socket
-			s.close()
+		while True:
+			time.sleep(delay)
+			pad0pressedAgain = not GPIO.input(pad0)
+			if pad0pressedAgain:
+				print "Pad 0 double tapped. Turning Light blue."
+				changeColor(2)
+				light0 = True
+			break
+		if not light0:
+			print "Pad 0 pressed. Turning Light red."
+			changeColor(1)
 			light0 = True
+		elif light0 and not pad0pressedAgain:
+			print "Pad 0 pressed. Turning Light off."
+			changeColor(0)
+			light0 = False
     pad0alreadyPressed = pad0pressed
+    pad0pressedAgain = pad0pressed
 
     if pad1pressed and not pad1alreadyPressed:
-        print "Pad 1 pressed"
+		print "Pad 1 pressed changing color"
+		print 'i:'+str(i)
+		i = (i+1) % len(colorList)
+		print 'i:'+str(i)
+		print str(len(colorList))
+		print 'i:'+str(i)
+		if i == 0:
+			i+=1
+		print 'i:'+str(i)
+		changeColor(i)
+		light0 = True
     pad1alreadyPressed = pad1pressed
 
     if pad2pressed and not pad2alreadyPressed:
